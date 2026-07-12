@@ -7,7 +7,7 @@ import Button from './Button';
 describe('Button Component', () => {
   it('should render button text correctly', () => {
     render(<Button>Simpan</Button>);
-    expect(screen.getByText('TombolSalah')).toBeInTheDocument();
+    expect(screen.getByText('Simpan')).toBeInTheDocument();
   });
 
   it('should handle click event properly', () => {
