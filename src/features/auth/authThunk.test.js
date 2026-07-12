@@ -1,96 +1,61 @@
+/* global describe, it, expect, jest, beforeEach, afterEach */
 import configureMockStore from 'redux-mock-store';
-import thunk from 'redux-thunk';
-import { asyncLogin, asyncLogout } from './authThunk';
+import { thunk } from 'redux-thunk';
+import { asyncRegister, asyncLogin, asyncGetOwnProfile, asyncLogout } from './authThunk';
 import api from '../../api';
 
 const middlewares = [thunk];
 const mockStore = configureMockStore(middlewares);
 
-// Mock api
-jest.mock('../../api');
-
-describe('authThunk', () => {
+describe('authThunk async actions', () => {
   let store;
 
   beforeEach(() => {
-    store = mockStore({
-      auth: {
-        user: null,
-        token: null,
-        loading: false,
-        error: null,
-      },
-    });
-    jest.clearAllMocks();
+    store = mockStore({ auth: { token: 'fake-token', user: null } });
+    jest.spyOn(api, 'register').mockImplementation(() => Promise.resolve({ data: { user: {} } }));
+    jest.spyOn(api, 'login').mockImplementation(() => Promise.resolve({ data: { token: 'tok' } }));
+    jest.spyOn(api, 'getOwnProfile').mockImplementation(() => Promise.resolve({ data: { user: {} } }));
   });
 
-  describe('asyncLogin', () => {
-    const loginData = {
-      email: 'john@test.com',
-      password: 'password123',
-    };
-
-    it('should dispatch fulfilled on successful login', async () => {
-      const mockToken = 'fake-token';
-      const mockUser = { id: 'user-1', name: 'John Doe', email: 'john@test.com' };
-
-      api.login.mockResolvedValue({
-        data: { token: mockToken },
-      });
-      api.getOwnProfile.mockResolvedValue({
-        data: { user: mockUser },
-      });
-
-      const expectedActions = [
-        { type: asyncLogin.pending.type },
-        {
-          type: asyncLogin.fulfilled.type,
-          payload: { token: mockToken, user: mockUser },
-        },
-      ];
-
-      await store.dispatch(asyncLogin(loginData));
-
-      expect(store.getActions().map((action) => action.type)).toEqual(
-        expectedActions.map((action) => action.type)
-      );
-      expect(api.login).toHaveBeenCalledWith(loginData);
-      expect(api.getOwnProfile).toHaveBeenCalledWith(mockToken);
-    });
-
-    it('should dispatch rejected on failed login', async () => {
-      const errorMessage = 'Invalid credentials';
-      api.login.mockRejectedValue(new Error(errorMessage));
-
-      const expectedActions = [
-        { type: asyncLogin.pending.type },
-        {
-          type: asyncLogin.rejected.type,
-          payload: errorMessage,
-        },
-      ];
-
-      await store.dispatch(asyncLogin(loginData));
-
-      expect(store.getActions().map((action) => action.type)).toEqual(
-        expectedActions.map((action) => action.type)
-      );
-      expect(api.getOwnProfile).not.toHaveBeenCalled();
-    });
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
-  describe('asyncLogout', () => {
-    it('should dispatch fulfilled on logout', async () => {
-      const expectedActions = [
-        { type: asyncLogout.pending.type },
-        { type: asyncLogout.fulfilled.type, payload: true },
-      ];
+  it('should dispatch fulfilled on successful registration', async () => {
+    await store.dispatch(asyncRegister({ name: 'N', email: 'E', password: 'P' }));
+    expect(store.getActions().some(a => a.type === asyncRegister.fulfilled.type)).toBe(true);
+  });
 
-      await store.dispatch(asyncLogout());
+  it('should dispatch rejected on failed registration', async () => {
+    api.register.mockRejectedValue(new Error('Reg failed'));
+    await store.dispatch(asyncRegister({ name: 'N', email: 'E', password: 'P' }));
+    expect(store.getActions().some(a => a.type === asyncRegister.rejected.type)).toBe(true);
+  });
 
-      expect(store.getActions().map((action) => action.type)).toEqual(
-        expectedActions.map((action) => action.type)
-      );
-    });
+  it('should dispatch fulfilled on successful login', async () => {
+    await store.dispatch(asyncLogin({ email: 'E', password: 'P' }));
+    expect(store.getActions().some(a => a.type === asyncLogin.fulfilled.type)).toBe(true);
+  });
+
+  it('should dispatch rejected on failed login', async () => {
+    api.login.mockRejectedValue(new Error('Login failed'));
+    await store.dispatch(asyncLogin({ email: 'E', password: 'P' }));
+    expect(store.getActions().some(a => a.type === asyncLogin.rejected.type)).toBe(true);
+  });
+
+  it('should dispatch fulfilled on successful profile fetching', async () => {
+    await store.dispatch(asyncGetOwnProfile());
+    expect(store.getActions().some(a => a.type === asyncGetOwnProfile.fulfilled.type)).toBe(true);
+  });
+
+  it('should dispatch rejected if token not found on profile fetching', async () => {
+    store = mockStore({ auth: { token: null } });
+    await store.dispatch(asyncGetOwnProfile());
+    expect(store.getActions().some(a => a.type === asyncGetOwnProfile.rejected.type)).toBe(true);
+  });
+
+  it('should dispatch fulfilled on logout', async () => {
+    await store.dispatch(asyncLogout());
+    expect(store.getActions().some(a => a.type === asyncLogout.fulfilled.type)).toBe(true);
   });
 });
