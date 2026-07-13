@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import LoadingBar from '@dimasmds/react-redux-loading-bar';
@@ -14,13 +14,28 @@ import './App.css';
 
 function App() {
   const dispatch = useDispatch();
+  const [isPrecheck, setIsPrecheck] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      dispatch(asyncGetOwnProfile());
+      dispatch(asyncGetOwnProfile())
+        .finally(() => {
+          setIsPrecheck(false);
+        });
+    } else {
+      setIsPrecheck(false);
     }
   }, [dispatch]);
+
+  // Menahan render rute agar komponen ProtectedRoute tidak mencuri start membaca data null
+  if (isPrecheck) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <p>Memuat aplikasi...</p>
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
